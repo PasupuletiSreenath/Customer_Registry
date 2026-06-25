@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Customer from "./pages/Customer";
@@ -9,9 +9,14 @@ import ProtectedRoute from "./components/ProtectedRoute";
 function App() {
   return (
     <Routes>
+      {/* ✅ Default route */}
+      <Route path="/" element={<Navigate to="/login" />} />
+
+      {/* ✅ Public routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
+      {/* ✅ Protected routes */}
       <Route
         path="/customer"
         element={
@@ -38,6 +43,9 @@ function App() {
           </ProtectedRoute>
         }
       />
+
+      {/* 404 fallback */}
+      <Route path="*" element={<Navigate to="/login" />} />
     </Routes>
   );
 }

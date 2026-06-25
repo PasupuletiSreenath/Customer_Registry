@@ -13,9 +13,11 @@ function Login() {
     try {
       const { data } = await API.post("/auth/login", form);
 
+      // ✅ SAVE HERE
+      localStorage.setItem("user", JSON.stringify(data));
+
       login(data);
 
-      // Redirect based on role
       const role = data.user.role;
 
       if (role === "admin") navigate("/admin");
