@@ -1,601 +1,1016 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import {
-  ShieldCheck,
-  Activity,
-  Users,
-  Workflow,
-  KeyRound,
-  LayoutDashboard,
-  ArrowRight,
-  Menu,
-  X,
-  CheckCircle2,
-  Circle,
-  Clock,
-} from "lucide-react";
+import React, { useState, useEffect } from 'react';
 
-const NAV_LINKS = [
-  { label: "Features", href: "#features" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "About", href: "#about" },
-];
+// Counter for newly generated cases in client memory
+let caseCounter = 2382;
 
-const FEATURES = [
-  {
-    icon: ShieldCheck,
-    title: "Role-based access control",
-    desc: "Admins, agents, and customers each see exactly what they need — nothing more, nothing less.",
-  },
-  {
-    icon: Activity,
-    title: "Real-time complaint tracking",
-    desc: "Every update, comment, and status change syncs instantly across the team.",
-  },
-  {
-    icon: Users,
-    title: "Agent assignment system",
-    desc: "Route cases automatically or assign by hand, based on load and expertise.",
-  },
-  {
-    icon: Workflow,
-    title: "Status workflow",
-    desc: "Open, in progress, resolved — a clear path every case follows, with full audit history.",
-  },
-  {
-    icon: KeyRound,
-    title: "Secure authentication",
-    desc: "JWT-based sessions keep every account and customer record protected by default.",
-  },
-  {
-    icon: LayoutDashboard,
-    title: "Admin dashboard control",
-    desc: "One view of volume, response times, and team performance — no spreadsheets required.",
-  },
-];
+// ==========================================
+// 1. Toast Notification Component
+// ==========================================
+function Toast({ toasts }) {
+  return (
+    <div className="fixed bottom-8 right-8 z-[1100] flex flex-col gap-3 max-w-sm pointer-events-none">
+      {toasts.map((toast) => {
+        let bgStyle = "bg-slate-900 text-white";
+        let icon = (
+          <svg className="w-[18px] h-[18px] text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+          </svg>
+        );
 
-const STEPS = [
-  {
-    num: "01",
-    title: "Customer raises a complaint",
-    desc: "Submitted through the portal with the details and context an agent will need.",
-  },
-  {
-    num: "02",
-    title: "Admin assigns an agent",
-    desc: "Routed to the right person based on category, workload, or priority.",
-  },
-  {
-    num: "03",
-    title: "Agent resolves the issue",
-    desc: "Status moves from open to resolved, with a full record kept for reference.",
-  },
-];
+        if (toast.type === "success") {
+          bgStyle = "bg-slate-900 text-white border-l-4 border-emerald-500";
+          icon = (
+            <svg className="w-[18px] h-[18px] text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+          );
+        } else if (toast.type === "error") {
+          bgStyle = "bg-slate-900 text-white border-l-4 border-red-500";
+          icon = (
+            <svg className="w-[18px] h-[18px] text-red-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="15" y1="9" x2="9" y2="15"></line>
+              <line x1="9" y1="9" x2="15" y2="15"></line>
+            </svg>
+          );
+        } else if (toast.type === "info") {
+          bgStyle = "bg-slate-900 text-white border-l-4 border-indigo-500";
+          icon = (
+            <svg className="w-[18px] h-[18px] text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+          );
+        }
 
-const ROLES = [
-  {
-    title: "Admin Dashboard",
-    desc: "Oversee every case, manage agents, and monitor team performance from a single control center.",
-    points: ["Team & permissions", "Case volume analytics", "SLA monitoring"],
-    cta: "Preview admin view",
-  },
-  {
-    title: "Agent Dashboard",
-    desc: "A focused queue of assigned cases, with everything needed to respond and resolve quickly.",
-    points: ["Assigned case queue", "Internal notes", "Status updates"],
-    cta: "Preview agent view",
-  },
-  {
-    title: "Customer Portal",
-    desc: "A simple place for customers to file complaints and track resolution status in real time.",
-    points: ["Submit a complaint", "Track case status", "Message history"],
-    cta: "Preview customer view",
-  },
-];
+        return (
+          <div 
+            key={toast.id} 
+            className={`flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl pointer-events-auto transition-all duration-300 transform translate-y-0 opacity-100 ${bgStyle} animate-slideIn`}
+          >
+            {icon}
+            <span className="text-sm font-semibold">{toast.message}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
-function CaseBoardMock() {
-  const cases = [
-    { id: "CR-2381", title: "Delayed refund on order", status: "open" },
-    { id: "CR-2380", title: "Login access issue", status: "progress" },
-    { id: "CR-2376", title: "Damaged item received", status: "progress" },
-    { id: "CR-2371", title: "Billing discrepancy", status: "resolved" },
-  ];
+// ==========================================
+// 2. Navigation Bar Component
+// ==========================================
+function Navbar() {
+  const [isOpen, setIsOpen] = useState(false);
 
-  const statusMap = {
-    open: {
-      label: "Open",
-      icon: Circle,
-      classes: "text-rose-600 bg-rose-50 ring-rose-200",
-    },
-    progress: {
-      label: "In progress",
-      icon: Clock,
-      classes: "text-amber-600 bg-amber-50 ring-amber-200",
-    },
-    resolved: {
-      label: "Resolved",
-      icon: CheckCircle2,
-      classes: "text-emerald-600 bg-emerald-50 ring-emerald-200",
-    },
+  const handleScroll = (e, id) => {
+    e.preventDefault();
+    setIsOpen(false);
+    const targetElement = document.querySelector(id);
+    if (targetElement) {
+      const headerElement = document.querySelector('header');
+      const headerHeight = headerElement ? headerElement.offsetHeight : 80;
+      const targetPosition = targetElement.getBoundingClientRect().top + window.pageYOffset - headerHeight;
+      window.scrollTo({
+        top: targetPosition,
+        behavior: 'smooth'
+      });
+    }
   };
 
   return (
-    <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/5 overflow-hidden">
-      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-        <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
-          <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+    <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b border-slate-200">
+      <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+        <a href="#" className="flex items-center gap-2 group">
+          <svg className="w-7 h-7 text-indigo-600 transition-transform group-hover:rotate-[-10deg] group-hover:scale-105" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M9 11l2 2 4-4" strokeWidth="3"/>
+          </svg>
+          <span className="font-display text-xl font-extrabold tracking-tight text-slate-900">Customer Registry</span>
+        </a>
+        
+        {/* Desktop Links */}
+        <nav className="hidden md:flex items-center gap-8">
+          <a href="#features" onClick={(e) => handleScroll(e, '#features')} className="text-sm font-semibold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/50 px-3 py-2 rounded-md transition-all">Features</a>
+          <a href="#how-it-works" onClick={(e) => handleScroll(e, '#how-it-works')} className="text-sm font-semibold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/50 px-3 py-2 rounded-md transition-all">How it works</a>
+          <a href="#roles" onClick={(e) => handleScroll(e, '#roles')} className="text-sm font-semibold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/50 px-3 py-2 rounded-md transition-all">About / Roles</a>
+        </nav>
+
+        {/* Desktop Actions */}
+        <div className="hidden md:flex items-center gap-6">
+          <a href="login.html" className="text-sm font-semibold text-slate-600 hover:text-indigo-600 transition-colors">Login</a>
+          <a href="register.html" className="inline-flex items-center justify-center font-bold px-4 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-600/20 active:scale-95 rounded-xl transition-all">Get Started</a>
         </div>
-        <span className="font-mono text-xs text-slate-400">
-          case-registry/queue
-        </span>
+
+        {/* Mobile Toggle Button */}
+        <button 
+          onClick={() => setIsOpen(!isOpen)} 
+          className="md:hidden p-2 text-slate-600 hover:text-indigo-600 focus:outline-none"
+          aria-label="Toggle Menu"
+        >
+          {isOpen ? (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          ) : (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16m-7 6h7"/>
+            </svg>
+          )}
+        </button>
       </div>
-      <div className="divide-y divide-slate-100">
-        {cases.map((c) => {
-          const s = statusMap[c.status];
-          const Icon = s.icon;
-          return (
-            <div
-              key={c.id}
-              className="flex items-center justify-between gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="font-mono text-xs text-slate-400 shrink-0">
-                  {c.id}
-                </span>
-                <span className="text-sm text-slate-700 truncate">
-                  {c.title}
+
+      {/* Mobile Menu Drawer */}
+      {isOpen && (
+        <div className="md:hidden border-t border-slate-200 bg-white/95 backdrop-blur-md px-6 py-4 flex flex-col gap-4">
+          <a href="#features" onClick={(e) => handleScroll(e, '#features')} className="text-base font-semibold text-slate-600 hover:text-indigo-600 transition-colors">Features</a>
+          <a href="#how-it-works" onClick={(e) => handleScroll(e, '#how-it-works')} className="text-base font-semibold text-slate-600 hover:text-indigo-600 transition-colors">How it works</a>
+          <a href="#roles" onClick={(e) => handleScroll(e, '#roles')} className="text-base font-semibold text-slate-600 hover:text-indigo-600 transition-colors">About / Roles</a>
+          <div className="w-full border-t border-slate-100 my-1"></div>
+          <a href="login.html" className="text-base font-semibold text-slate-600 hover:text-indigo-600 transition-colors">Login</a>
+          <a href="register.html" className="w-full text-center font-bold px-4 py-2.5 text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors">Get Started</a>
+        </div>
+      )}
+    </header>
+  );
+}
+
+// ==========================================
+// 3. Case Queue Component
+// ==========================================
+function CaseQueue({ cases, onInspect }) {
+  const activeCount = cases.filter(c => c.status !== 'Resolved').length;
+
+  return (
+    <div className="w-full max-w-[460px] bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xl hover:-translate-y-1 hover:shadow-2xl transition-all duration-300">
+      <div className="bg-slate-100 border-b border-slate-200 px-4 py-3 flex items-center relative">
+        <div className="flex gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]"></span>
+          <span className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]"></span>
+          <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f]"></span>
+        </div>
+        <div className="mx-auto bg-white border border-slate-200 rounded px-10 py-0.5 text-[11px] text-slate-400 font-mono">
+          case-registry/queue
+        </div>
+      </div>
+      
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-base font-extrabold text-slate-900">Active Cases</h3>
+          <span className="text-xs font-bold bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-full border border-indigo-100/50">
+            {activeCount} active case{activeCount !== 1 ? 's' : ''}
+          </span>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          {cases.map((c) => {
+            let statusStyle = "bg-red-50 text-red-500 border-red-200";
+            if (c.status === "In progress") {
+              statusStyle = "bg-amber-50 text-amber-600 border-amber-200";
+            } else if (c.status === "Resolved") {
+              statusStyle = "bg-emerald-50 text-emerald-500 border-emerald-200";
+            }
+
+            return (
+              <div 
+                key={c.id} 
+                onClick={() => onInspect(c.id)}
+                className="grid grid-cols-[75px_1fr_auto] items-center px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold cursor-pointer hover:bg-white hover:border-indigo-600 hover:translate-x-1 hover:shadow-sm transition-all duration-200"
+              >
+                <span className="text-slate-400 font-bold">{c.id}</span>
+                <span className="text-slate-900 font-semibold truncate pr-2">{c.desc}</span>
+                <span className={`px-2 py-0.5 rounded-full border font-bold text-[10px] text-center ${statusStyle}`}>
+                  {c.status}
                 </span>
               </div>
-              <span
-                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${s.classes}`}
-              >
-                <Icon className="h-3 w-3" strokeWidth={2.5} />
-                {s.label}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      <div className="border-t border-slate-100 bg-slate-50/60 px-5 py-3">
-        <div className="flex items-center justify-between text-xs text-slate-500">
-          <span>4 active cases</span>
-          <span className="font-mono">avg. resolution: 6h 12m</span>
+            );
+          })}
+        </div>
+
+        <div className="mt-5 pt-4 border-t border-slate-100 flex justify-end">
+          <div className="flex items-center gap-1.5 text-xs font-bold">
+            <span className="text-slate-500">Avg. Resolution:</span>
+            <span className="text-slate-900 font-extrabold">6h 12m</span>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-export default function HomePage() {
-  const [mobileOpen, setMobileOpen] = useState(false);
+// ==========================================
+// 4. Hero Section Component
+// ==========================================
+function Hero({ cases, onInspect }) {
+  return (
+    <section id="hero" className="py-12 md:py-20 relative">
+      <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-12 lg:gap-16 items-center">
+        <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
+          <div className="inline-flex items-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-full text-xs font-bold text-indigo-600 shadow-sm mb-6">
+            <span className="relative inline-block w-2 h-2 bg-emerald-500 rounded-full">
+              <span className="absolute inset-0 bg-emerald-500 rounded-full animate-ping opacity-75"></span>
+            </span>
+            Built for support & operations teams
+          </div>
+          
+          <h1 className="font-display text-4xl sm:text-5xl lg:text-[3.25rem] font-extrabold leading-[1.15] tracking-tight text-slate-900 mb-6">
+            Streamline complaint & <br />
+            <span className="bg-gradient-to-r from-indigo-600 to-indigo-500 bg-clip-text text-transparent">
+              case management
+            </span> for modern teams
+          </h1>
+          
+          <p className="text-base sm:text-lg text-slate-600 leading-relaxed mb-8 max-w-xl mx-auto lg:mx-0">
+            One system for the whole loop — customers submit cases, admins assign them, and agents resolve them. Clear roles, clear status, no spreadsheets in between.
+          </p>
+          
+          <div className="flex flex-wrap gap-4 justify-center lg:justify-start mb-10">
+            <a href="register.html" className="inline-flex items-center justify-center font-bold px-6 py-3.5 text-base text-white bg-indigo-600 hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-600/25 active:scale-95 rounded-2xl transition-all">
+              Get Started
+            </a>
+            <a href="login.html" className="inline-flex items-center justify-center font-bold px-6 py-3.5 text-base text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 active:scale-95 rounded-2xl shadow-sm transition-all">
+              Login
+            </a>
+          </div>
+
+          <div className="w-full flex flex-wrap gap-8 justify-center lg:justify-start pt-7 border-t border-slate-200">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+              <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              <span>3 role-based portals</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+              <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              <span>JWT secured sessions</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-center lg:justify-end">
+          <CaseQueue cases={cases} onInspect={onInspect} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ==========================================
+// 5. How It Works Component
+// ==========================================
+function HowItWorks() {
+  return (
+    <section id="how-it-works" className="py-20 border-t border-slate-200">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="text-center mb-16">
+          <h3 className="font-display text-xs font-extrabold uppercase tracking-widest text-indigo-600 mb-2">How it works</h3>
+          <h2 className="font-display text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
+            From complaint to resolution, in three steps
+          </h2>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
+          <div className="flex flex-col relative group">
+            <div className="flex items-center mb-5 relative w-full">
+              <span className="font-display text-4xl font-extrabold text-indigo-600 bg-slate-50 z-10 pr-4">01</span>
+              <div className="absolute left-0 right-0 h-0.5 bg-slate-200 z-0 hidden md:block"></div>
+            </div>
+            <h4 className="text-lg font-extrabold text-slate-900 mb-2">Customer raises a complaint</h4>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Submitted through the portal with the details and context an agent will need.
+            </p>
+          </div>
+          
+          <div className="flex flex-col relative group">
+            <div className="flex items-center mb-5 relative w-full">
+              <span className="font-display text-4xl font-extrabold text-indigo-600 bg-slate-50 z-10 pr-4">02</span>
+              <div className="absolute left-0 right-0 h-0.5 bg-slate-200 z-0 hidden md:block"></div>
+            </div>
+            <h4 className="text-lg font-extrabold text-slate-900 mb-2">Admin assigns an agent</h4>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Routed to the right person based on category, workload, or priority.
+            </p>
+          </div>
+
+          <div className="flex flex-col relative group">
+            <div className="flex items-center mb-5 relative w-full">
+              <span className="font-display text-4xl font-extrabold text-indigo-600 bg-slate-50 z-10 pr-4">03</span>
+            </div>
+            <h4 className="text-lg font-extrabold text-slate-900 mb-2">Agent resolves the issue</h4>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Status moves from open to resolved, with a full record kept for reference.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ==========================================
+// 6. Features Component
+// ==========================================
+const featureItems = [
+  {
+    title: 'Role-based access control',
+    text: 'Admins, agents, and customers each see exactly what they need — nothing more, nothing less.',
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+      </svg>
+    )
+  },
+  {
+    title: 'Real-time complaint tracking',
+    text: 'Every update, comment, and status change syncs instantly across the team.',
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+      </svg>
+    )
+  },
+  {
+    title: 'Agent assignment system',
+    text: 'Route cases automatically or manually based on agent workload and expertise.',
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <line x1="19" y1="8" x2="19" y2="14"></line>
+        <line x1="22" y1="11" x2="16" y2="11"></line>
+      </svg>
+    )
+  },
+  {
+    title: 'Status workflow',
+    text: 'Open, in progress, resolved — a clear path every case follows, with full audit history.',
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+        <polyline points="16 7 22 7 22 13"></polyline>
+      </svg>
+    )
+  },
+  {
+    title: 'Secure authentication',
+    text: 'JWT-based sessions keep every account and customer record protected by default.',
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+      </svg>
+    )
+  },
+  {
+    title: 'Admin dashboard control',
+    text: 'One view of volume, response times, and individual agent performance — no spreadsheets.',
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="7" height="9"></rect>
+        <rect x="14" y="3" width="7" height="5"></rect>
+        <rect x="14" y="12" width="7" height="9"></rect>
+        <rect x="3" y="16" width="7" height="5"></rect>
+      </svg>
+    )
+  }
+];
+
+function Features() {
+  return (
+    <section id="features" className="py-20 border-t border-slate-200">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="text-center mb-16">
+          <h3 className="font-display text-xs font-extrabold uppercase tracking-widest text-indigo-600 mb-2">Features</h3>
+          <h2 className="font-display text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+            Everything the case lifecycle needs
+          </h2>
+          <p className="text-base sm:text-lg text-slate-600 mt-4 max-w-xl mx-auto">
+            From intake to resolution, each piece is built so admins, agents, and customers stay in sync without extra tools.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {featureItems.map((item, idx) => (
+            <div 
+              key={idx} 
+              className="bg-white border border-slate-200 rounded-2xl p-8 hover:-translate-y-1 hover:shadow-2xl hover:border-indigo-600 group transition-all duration-300 shadow-sm"
+            >
+              <div className="w-12 h-12 bg-indigo-50 text-indigo-600 border border-indigo-100/30 rounded-xl flex items-center justify-center mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300">
+                {item.icon}
+              </div>
+              <h3 className="text-lg font-extrabold text-slate-900 mb-3">{item.title}</h3>
+              <p className="text-sm text-slate-600 leading-relaxed">{item.text}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ==========================================
+// 7. Roles & Preview Buttons Component
+// ==========================================
+const roleItems = [
+  {
+    role: 'admin',
+    title: 'Admin Dashboard',
+    desc: 'Oversee every case, manage agents, and monitor team performance from a single control center.',
+    features: ['Team & permissions', 'Case volume analytics', 'SLA monitoring']
+  },
+  {
+    role: 'agent',
+    title: 'Agent Dashboard',
+    desc: 'A focused queue of assigned cases, with everything needed to respond and resolve quickly.',
+    features: ['Assigned case queue', 'Internal notes', 'Status updates']
+  },
+  {
+    role: 'customer',
+    title: 'Customer Portal',
+    desc: 'A simple place for customers to file complaints and track resolution status in real time.',
+    features: ['Submit a complaint', 'Track case status', 'Message history']
+  }
+];
+
+function Roles({ onPreview }) {
+  return (
+    <section id="roles" className="py-20 border-t border-slate-200">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="text-center mb-16">
+          <h3 className="font-display text-xs font-extrabold uppercase tracking-widest text-indigo-600 mb-2">Built for every role</h3>
+          <h2 className="font-display text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+            A dedicated view for everyone in the loop
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {roleItems.map((item, idx) => (
+            <div 
+              key={idx} 
+              className="bg-white border border-slate-200 rounded-2xl p-10 flex flex-col hover:-translate-y-1 hover:shadow-2xl hover:border-slate-300 transition-all duration-300 shadow-md"
+            >
+              <h3 className="text-xl font-extrabold text-slate-900 mb-3">{item.title}</h3>
+              <p className="text-sm text-slate-600 mb-7 leading-relaxed min-h-[4.5rem]">{item.desc}</p>
+              
+              <ul className="flex flex-col gap-3 mb-9 flex-grow">
+                {item.features.map((feat, fIdx) => (
+                  <li key={fIdx} className="flex items-center gap-2.5 text-sm font-semibold text-slate-900">
+                    <svg className="w-[18px] h-[18px] text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    <span>{feat}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <button 
+                onClick={() => onPreview(item.role)}
+                className="w-full inline-flex items-center justify-center gap-1.5 font-bold px-4 py-3 text-sm text-slate-700 hover:text-slate-900 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98] rounded-xl transition-all shadow-sm group"
+              >
+                Preview {item.role} view
+                <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                  <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ==========================================
+// 8. Preview Modal Overlay Component
+// ==========================================
+function PreviewModal({ 
+  isOpen, 
+  role, 
+  caseId, 
+  cases, 
+  onClose, 
+  onUpdateCaseStatus, 
+  onAddCase, 
+  onAddToast 
+}) {
+  const [activeCase, setActiveCase] = useState(null);
+  
+  // Note inputs
+  const [noteText, setNoteText] = useState('');
+  const [notes, setNotes] = useState([
+    { author: 'System', text: 'Created case session.' }
+  ]);
+
+  // Customer Form state
+  const [subject, setSubject] = useState('');
+  const [category, setCategory] = useState('Refunds');
+  const [priority, setPriority] = useState('Medium');
+  const [desc, setDesc] = useState('');
+
+  // Handle setting active case details when caseId or cases change
+  useEffect(() => {
+    if (caseId && cases) {
+      const found = cases.find(c => c.id === caseId);
+      if (found) {
+        setActiveCase(found);
+      }
+    } else if (cases && cases.length > 0) {
+      setActiveCase(cases[0]);
+    }
+  }, [caseId, cases, isOpen]);
+
+  // Clean states on open/role change
+  useEffect(() => {
+    if (isOpen) {
+      setNotes([{ author: 'System', text: 'Created case session.' }]);
+      setNoteText('');
+      setSubject('');
+      setCategory('Refunds');
+      setPriority('Medium');
+      setDesc('');
+    }
+  }, [isOpen, role]);
+
+  if (!isOpen) return null;
+
+  const handleSaveNote = () => {
+    if (!noteText.trim()) {
+      onAddToast("Please enter a note", "error");
+      return;
+    }
+    setNotes([...notes, { author: 'Agent', text: noteText.trim() }]);
+    setNoteText('');
+    onAddToast("Internal audit note added!", "success");
+  };
+
+  const handleStatusUpdate = (newStatus) => {
+    if (activeCase) {
+      onUpdateCaseStatus(activeCase.id, newStatus);
+      onAddToast(`Case ${activeCase.id} updated to ${newStatus}`, "success");
+      onClose();
+    }
+  };
+
+  const handleCustomerSubmit = (e) => {
+    e.preventDefault();
+    if (!subject.trim() || !desc.trim()) {
+      onAddToast("Please fill in all required fields", "error");
+      return;
+    }
+    onAddCase({
+      desc: subject.trim(),
+      details: desc.trim(),
+      category,
+      priority,
+      status: 'Open'
+    });
+    onClose();
+  };
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 antialiased">
-      {/* ───────────────────────── Navbar ───────────────────────── */}
-      <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/80 backdrop-blur-md">
-        <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-          <Link to="/" className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white">
-              <ShieldCheck className="h-4.5 w-4.5" strokeWidth={2.25} />
-            </span>
-            <span className="text-[15px] font-semibold tracking-tight text-slate-900">
-              Customer Registry
-            </span>
-          </Link>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 backdrop-blur-md px-4">
+      <div className="absolute inset-0" onClick={onClose}></div>
 
-          <div className="hidden items-center gap-8 md:flex">
-            {NAV_LINKS.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
-              >
-                {link.label}
-              </a>
-            ))}
-          </div>
-
-          <div className="hidden items-center gap-3 md:flex">
-            <Link
-              to="/login"
-              className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
-            >
-              Login
-            </Link>
-            <Link
-              to="/signup"
-              className="inline-flex items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-800"
-            >
-              Get Started
-            </Link>
-          </div>
-
-          <button
-            onClick={() => setMobileOpen((v) => !v)}
-            className="inline-flex items-center justify-center rounded-md p-2 text-slate-600 md:hidden"
-            aria-label="Toggle menu"
+      <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl relative z-10 animate-scaleUp">
+        <div className="bg-slate-100 border-b border-slate-200 px-8 py-5 flex justify-between items-center">
+          <h3 className="font-display text-lg font-extrabold text-slate-900">
+            {role === 'admin' && 'Admin Dashboard - Interactive Preview'}
+            {role === 'agent' && 'Agent Dashboard - Interactive Preview'}
+            {role === 'customer' && 'Customer Portal - File a Complaint'}
+          </h3>
+          <button 
+            onClick={onClose} 
+            className="text-2xl text-slate-400 hover:text-slate-900 focus:outline-none transition-colors"
           >
-            {mobileOpen ? (
-              <X className="h-5 w-5" />
-            ) : (
-              <Menu className="h-5 w-5" />
-            )}
+            &times;
           </button>
-        </nav>
-
-        {mobileOpen && (
-          <div className="border-t border-slate-200 bg-white px-6 py-4 md:hidden">
-            <div className="flex flex-col gap-4">
-              {NAV_LINKS.map((link) => (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  onClick={() => setMobileOpen(false)}
-                  className="text-sm font-medium text-slate-600 hover:text-slate-900"
-                >
-                  {link.label}
-                </a>
-              ))}
-              <div className="mt-2 flex flex-col gap-3 border-t border-slate-100 pt-4">
-                <Link
-                  to="/login"
-                  className="text-sm font-medium text-slate-600 hover:text-slate-900"
-                >
-                  Login
-                </Link>
-                <Link
-                  to="/signup"
-                  className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white"
-                >
-                  Get Started
-                </Link>
-              </div>
-            </div>
-          </div>
-        )}
-      </header>
-
-      {/* ───────────────────────── Hero ───────────────────────── */}
-      <section className="relative overflow-hidden">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 -z-10"
-        >
-          <div className="absolute left-1/2 top-[-10%] h-[600px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-tr from-indigo-100 via-indigo-50 to-transparent opacity-70 blur-3xl" />
-          <div className="absolute right-[-10%] top-[20%] h-[400px] w-[400px] rounded-full bg-gradient-to-br from-sky-100 to-transparent opacity-60 blur-3xl" />
-          <svg
-            className="absolute inset-0 h-full w-full opacity-[0.4]"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <defs>
-              <pattern
-                id="grid"
-                width="48"
-                height="48"
-                patternUnits="userSpaceOnUse"
-              >
-                <path
-                  d="M48 0H0V48"
-                  fill="none"
-                  stroke="#e2e8f0"
-                  strokeWidth="1"
-                />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-          </svg>
         </div>
 
-        <div className="mx-auto max-w-7xl px-6 pb-20 pt-16 lg:px-8 lg:pb-28 lg:pt-24">
-          <div className="grid grid-cols-1 items-center gap-16 lg:grid-cols-2 lg:gap-12">
+        <div className="p-8 max-h-[75vh] overflow-y-auto">
+          {/* ADMIN VIEW */}
+          {role === 'admin' && (
             <div>
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                Built for support &amp; operations teams
-              </div>
-
-              <h1 className="text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
-                Streamline complaint &amp; case management for modern teams
-              </h1>
-
-              <p className="mt-6 max-w-lg text-lg leading-relaxed text-slate-600">
-                One system for the whole loop — customers submit cases, admins
-                assign them, and agents resolve them. Clear roles, clear status,
-                no spreadsheets in between.
-              </p>
-
-              <div className="mt-9 flex flex-wrap items-center gap-4">
-                <Link
-                  to="/signup"
-                  className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-3 text-sm font-medium text-white shadow-sm shadow-indigo-600/20 transition-colors hover:bg-indigo-500"
-                >
-                  Get Started
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-                <Link
-                  to="/login"
-                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
-                >
-                  Login
-                </Link>
-              </div>
-
-              <div className="mt-10 flex items-center gap-8 border-t border-slate-100 pt-8 text-sm text-slate-500">
-                <div>
-                  <span className="font-mono text-base font-semibold text-slate-900">
-                    3
-                  </span>
-                  <span className="ml-1.5">role-based portals</span>
+              <div className="grid grid-cols-3 gap-5 mb-6">
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 text-center">
+                  <div className="font-display text-3xl font-extrabold text-indigo-600 leading-none">
+                    {cases.length + 42}
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">
+                    Total Volume
+                  </div>
                 </div>
-                <div>
-                  <span className="font-mono text-base font-semibold text-slate-900">
-                    JWT
-                  </span>
-                  <span className="ml-1.5">secured sessions</span>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 text-center">
+                  <div className="font-display text-3xl font-extrabold text-indigo-600 leading-none">
+                    {cases.filter(c => c.status !== 'Resolved').length}
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">
+                    Active Cases
+                  </div>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 text-center">
+                  <div className="font-display text-3xl font-extrabold text-indigo-600 leading-none">
+                    98.2%
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">
+                    SLA Compliance
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 mb-6">
+                <h4 className="text-sm font-bold text-slate-950 mb-4">Inbound Volume (Last 5 Days)</h4>
+                <div className="flex items-end justify-between h-[120px] border-b border-slate-200 pb-1">
+                  <div className="flex flex-col items-center flex-grow">
+                    <div className="w-6 bg-indigo-600 hover:bg-indigo-700 rounded-t-sm transition-colors duration-200" style={{ height: '45px' }}></div>
+                    <span className="text-[10px] font-bold text-slate-400 mt-2">Mon</span>
+                  </div>
+                  <div className="flex flex-col items-center flex-grow">
+                    <div className="w-6 bg-indigo-600 hover:bg-indigo-700 rounded-t-sm transition-colors duration-200" style={{ height: '65px' }}></div>
+                    <span className="text-[10px] font-bold text-slate-400 mt-2">Tue</span>
+                  </div>
+                  <div className="flex flex-col items-center flex-grow">
+                    <div className="w-6 bg-indigo-600 hover:bg-indigo-700 rounded-t-sm transition-colors duration-200" style={{ height: '85px' }}></div>
+                    <span className="text-[10px] font-bold text-slate-400 mt-2">Wed</span>
+                  </div>
+                  <div className="flex flex-col items-center flex-grow">
+                    <div className="w-6 bg-indigo-600 hover:bg-indigo-700 rounded-t-sm transition-colors duration-200" style={{ height: '55px' }}></div>
+                    <span className="text-[10px] font-bold text-slate-400 mt-2">Thu</span>
+                  </div>
+                  <div className="flex flex-col items-center flex-grow">
+                    <div className="w-6 bg-indigo-600 hover:bg-indigo-700 rounded-t-sm transition-colors duration-200" style={{ height: '95px' }}></div>
+                    <span className="text-[10px] font-bold text-slate-400 mt-2">Fri</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 p-5 rounded-xl">
+                <h5 className="text-xs font-extrabold uppercase tracking-wider text-slate-900 mb-3">Agent Availability</h5>
+                <div className="flex flex-col gap-2 text-xs font-semibold">
+                  <div className="flex justify-between items-center">
+                    <span className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span>
+                      Sarah Jenkins (Senior Agent)
+                    </span>
+                    <span className="text-slate-500 font-medium">2 active cases</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span>
+                      David Miller (Agent)
+                    </span>
+                    <span className="text-slate-500 font-medium">3 active cases</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 bg-amber-500 rounded-full"></span>
+                      Elena Rostova (Away)
+                    </span>
+                    <span className="text-slate-500 font-medium">0 active cases</span>
+                  </div>
                 </div>
               </div>
             </div>
+          )}
 
-            <div className="flex justify-center lg:justify-end">
-              <CaseBoardMock />
+          {/* AGENT VIEW */}
+          {role === 'agent' && activeCase && (
+            <div className="grid grid-cols-1 md:grid-cols-[1.3fr_0.7fr] gap-6">
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6">
+                <div className="border-b border-slate-200 pb-4 mb-4">
+                  <div className="flex items-center gap-2 text-[10px] font-bold mb-1">
+                    <span className="text-indigo-600">{activeCase.id}</span>
+                    <span className="text-slate-300">•</span>
+                    <span className="text-slate-500">{activeCase.category}</span>
+                  </div>
+                  <h4 className="text-base font-extrabold text-slate-900">{activeCase.desc}</h4>
+                </div>
+                
+                <p className="text-xs text-slate-600 leading-relaxed mb-6">
+                  {activeCase.details}
+                </p>
+
+                <div>
+                  <h5 className="text-xs font-bold text-slate-950 mb-2">Internal Audit Notes</h5>
+                  <div className="mb-3 text-[11px] flex flex-col gap-2 max-h-[100px] overflow-y-auto pr-1">
+                    {notes.map((note, idx) => (
+                      <div key={idx} className="bg-white border border-slate-200 p-2 rounded-lg">
+                        <span className={`font-bold ${note.author === 'Agent' ? 'text-indigo-600' : 'text-slate-900'}`}>{note.author}: </span>
+                        <span className="text-slate-600 font-medium">{note.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <textarea 
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    className="w-full h-20 border border-slate-200 rounded-xl p-3 text-xs bg-white text-slate-900 focus:outline-none focus:border-indigo-600 resize-none mb-3"
+                    placeholder="Type an internal note only agents can see..."
+                  />
+                  <button 
+                    onClick={handleSaveNote}
+                    className="inline-flex items-center justify-center font-bold px-3 py-1.5 text-xs text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+                  >
+                    Save Note
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                  <h5 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-3">Status Routing</h5>
+                  <select 
+                    id="modal-status-select"
+                    defaultValue={activeCase.status}
+                    className="w-full p-2 border border-slate-200 rounded-lg text-xs font-semibold bg-slate-50 text-slate-900 mb-3 focus:outline-none focus:border-indigo-600"
+                  >
+                    <option value="Open">Open</option>
+                    <option value="In progress">In progress</option>
+                    <option value="Resolved">Resolved</option>
+                  </select>
+                  <button 
+                    onClick={() => {
+                      const sel = document.getElementById('modal-status-select');
+                      if (sel) handleStatusUpdate(sel.value);
+                    }}
+                    className="w-full inline-flex items-center justify-center font-bold px-3 py-2 text-xs text-slate-700 hover:text-slate-900 bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 rounded-lg transition-all"
+                  >
+                    Update Status
+                  </button>
+                </div>
+
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 text-xs font-semibold shadow-sm">
+                  <h5 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-3">Ticket Info</h5>
+                  <div className="mb-2">
+                    <span className="text-slate-500 font-medium">Priority:</span>{' '}
+                    <span className="text-slate-900 font-extrabold">{activeCase.priority}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 font-medium">Owner:</span>{' '}
+                    <span className="text-slate-900 font-extrabold">Sarah Jenkins</span>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </section>
+          )}
 
-      {/* ───────────────────────── Features ───────────────────────── */}
-      <section
-        id="features"
-        className="border-t border-slate-100 bg-slate-50/60 py-20 lg:py-28"
-      >
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="max-w-2xl">
-            <span className="text-sm font-medium text-indigo-600">
-              Features
-            </span>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-              Everything the case lifecycle needs
-            </h2>
-            <p className="mt-4 text-base leading-relaxed text-slate-600">
-              From intake to resolution, each piece is built so admins, agents,
-              and customers stay in sync without extra tools.
-            </p>
-          </div>
-
-          <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map(({ icon: Icon, title, desc }) => (
-              <div
-                key={title}
-                className="group rounded-2xl border border-slate-200 bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg hover:shadow-slate-900/5"
-              >
-                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 transition-colors group-hover:bg-indigo-600 group-hover:text-white">
-                  <Icon className="h-5 w-5" strokeWidth={2} />
+          {/* CUSTOMER VIEW */}
+          {role === 'customer' && (
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6">
+              <form onSubmit={handleCustomerSubmit}>
+                <div className="mb-4">
+                  <label className="block text-xs font-bold text-slate-950 mb-2" htmlFor="sub">
+                    Subject / Issue Summary*
+                  </label>
+                  <input 
+                    type="text" 
+                    id="sub" 
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white text-slate-900 focus:outline-none focus:border-indigo-600"
+                    placeholder="e.g. Can't download billing invoice" 
+                    required 
+                  />
                 </div>
-                <h3 className="text-base font-semibold text-slate-900">
-                  {title}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                  {desc}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ───────────────────────── How it works ───────────────────────── */}
-      <section id="how-it-works" className="py-20 lg:py-28">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="max-w-2xl">
-            <span className="text-sm font-medium text-indigo-600">
-              How it works
-            </span>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-              From complaint to resolution, in three steps
-            </h2>
-          </div>
-
-          <div className="mt-14 grid grid-cols-1 gap-10 md:grid-cols-3 md:gap-8">
-            {STEPS.map((step, i) => (
-              <div key={step.num} className="relative">
-                <div className="flex items-center gap-4">
-                  <span className="font-mono text-sm text-slate-400">
-                    {step.num}
-                  </span>
-                  <div className="h-px flex-1 bg-slate-200" />
-                </div>
-                <h3 className="mt-5 text-lg font-semibold text-slate-900">
-                  {step.title}
-                </h3>
-                <p className="mt-2.5 text-sm leading-relaxed text-slate-600">
-                  {step.desc}
-                </p>
-                {i < STEPS.length - 1 && (
-                  <ArrowRight className="absolute -right-7 top-1 hidden h-4 w-4 text-slate-300 md:block" />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ───────────────────────── Role Preview ───────────────────────── */}
-      <section
-        id="roles"
-        className="border-t border-slate-100 bg-slate-50/60 py-20 lg:py-28"
-      >
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="max-w-2xl">
-            <span className="text-sm font-medium text-indigo-600">
-              Built for every role
-            </span>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-              A dedicated view for everyone in the loop
-            </h2>
-          </div>
-
-          <div className="mt-14 grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {ROLES.map((role) => (
-              <div
-                key={role.title}
-                className="flex flex-col rounded-2xl border border-slate-200 bg-white p-7 shadow-sm transition-shadow hover:shadow-md"
-              >
-                <h3 className="text-lg font-semibold text-slate-900">
-                  {role.title}
-                </h3>
-                <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                  {role.desc}
-                </p>
-
-                <ul className="mt-6 flex-1 space-y-2.5">
-                  {role.points.map((p) => (
-                    <li
-                      key={p}
-                      className="flex items-center gap-2.5 text-sm text-slate-600"
+                
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-950 mb-2" htmlFor="cat">
+                      Category
+                    </label>
+                    <select 
+                      id="cat" 
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="w-full p-2.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white text-slate-900 focus:outline-none focus:border-indigo-600"
                     >
-                      <CheckCircle2
-                        className="h-4 w-4 shrink-0 text-emerald-500"
-                        strokeWidth={2}
-                      />
-                      {p}
-                    </li>
-                  ))}
-                </ul>
+                      <option value="Refunds">Refunds</option>
+                      <option value="Account Access">Account Access</option>
+                      <option value="Delivery Issues">Delivery Issues</option>
+                      <option value="Billing">Billing</option>
+                      <option value="Technical Support">Technical Support</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-bold text-slate-950 mb-2" htmlFor="pri">
+                      Urgency
+                    </label>
+                    <select 
+                      id="pri" 
+                      value={priority}
+                      onChange={(e) => setPriority(e.target.value)}
+                      className="w-full p-2.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white text-slate-900 focus:outline-none focus:border-indigo-600"
+                    >
+                      <option value="Low">Low (No rush)</option>
+                      <option value="Medium">Medium (Standard)</option>
+                      <option value="High">High (Urgent)</option>
+                    </select>
+                  </div>
+                </div>
 
-                <button className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:border-slate-900 hover:bg-slate-900 hover:text-white">
-                  {role.cta}
-                  <ArrowRight className="h-3.5 w-3.5" />
+                <div className="mb-6">
+                  <label className="block text-xs font-bold text-slate-950 mb-2" htmlFor="details">
+                    Provide Details / Context*
+                  </label>
+                  <textarea 
+                    id="details" 
+                    value={desc}
+                    onChange={(e) => setDesc(e.target.value)}
+                    className="w-full h-24 border border-slate-200 rounded-xl p-4 text-xs bg-white text-slate-900 focus:outline-none focus:border-indigo-600 resize-none"
+                    placeholder="Explain what happened, including order numbers, error codes or logs..." 
+                    required 
+                  />
+                </div>
+
+                <button 
+                  type="submit" 
+                  className="w-full inline-flex items-center justify-center font-bold px-4 py-3 text-sm text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded-xl transition-all"
+                >
+                  Submit Complaint
                 </button>
-              </div>
-            ))}
-          </div>
+              </form>
+            </div>
+          )}
         </div>
-      </section>
+      </div>
+    </div>
+  );
+}
 
-      {/* ───────────────────────── CTA banner ───────────────────────── */}
-      <section className="py-20 lg:py-24">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-2xl bg-slate-900 px-8 py-14 text-center sm:px-16">
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0"
-            >
-              <div className="absolute left-1/2 top-1/2 h-[400px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-600/20 blur-3xl" />
-            </div>
-            <h2 className="relative text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-              Bring order to your complaint workflow
-            </h2>
-            <p className="relative mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-300">
-              Set up admin, agent, and customer access in minutes — no
-              infrastructure to manage.
-            </p>
-            <div className="relative mt-8 flex flex-wrap items-center justify-center gap-4">
-              <Link
-                to="/signup"
-                className="inline-flex items-center gap-2 rounded-lg bg-white px-5 py-3 text-sm font-medium text-slate-900 shadow-sm transition-colors hover:bg-slate-100"
-              >
-                Get Started
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                to="/login"
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-slate-800"
-              >
-                Login
-              </Link>
-            </div>
-          </div>
+// ==========================================
+// 9. Footer Component
+// ==========================================
+function Footer() {
+  const handleScroll = (e, id) => {
+    e.preventDefault();
+    const targetElement = document.querySelector(id);
+    if (targetElement) {
+      const headerElement = document.querySelector('header');
+      const headerHeight = headerElement ? headerElement.offsetHeight : 80;
+      const targetPosition = targetElement.getBoundingClientRect().top + window.pageYOffset - headerHeight;
+      window.scrollTo({
+        top: targetPosition,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  return (
+    <footer className="bg-white border-t border-slate-200 py-16 mt-16">
+      <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-[1.5fr_1fr_1fr] gap-12 md:gap-16 mb-16">
+        <div className="flex flex-col">
+          <a href="#" className="flex items-center gap-2 mb-5">
+            <svg className="w-6 h-6 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="M9 11l2 2 4-4" strokeWidth="3"/>
+            </svg>
+            <span className="font-display text-lg font-extrabold tracking-tight text-slate-900">Customer Registry</span>
+          </a>
+          <p className="text-sm text-slate-600 leading-relaxed max-w-xs">
+            Simplifying operations and case routing for customer-centric engineering and support teams.
+          </p>
         </div>
-      </section>
-
-      {/* ───────────────────────── Footer ───────────────────────── */}
-      <footer id="about" className="border-t border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
-          <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
-            <div className="max-w-xs">
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white">
-                  <ShieldCheck className="h-4 w-4" strokeWidth={2.25} />
-                </span>
-                <span className="text-[15px] font-semibold tracking-tight text-slate-900">
-                  Customer Registry
-                </span>
-              </div>
-              <p className="mt-3 text-sm leading-relaxed text-slate-500">
-                A registry for customer complaints and cases — built for admins,
-                agents, and the customers they support.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
-              <div>
-                <h4 className="text-sm font-semibold text-slate-900">
-                  Product
-                </h4>
-                <ul className="mt-3 space-y-2.5 text-sm text-slate-500">
-                  <li>
-                    <a href="#features" className="hover:text-slate-900">
-                      Features
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#pricing" className="hover:text-slate-900">
-                      Pricing
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#roles" className="hover:text-slate-900">
-                      Roles
-                    </a>
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="text-sm font-semibold text-slate-900">
-                  Company
-                </h4>
-                <ul className="mt-3 space-y-2.5 text-sm text-slate-500">
-                  <li>
-                    <a href="#about" className="hover:text-slate-900">
-                      About
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-slate-900">
-                      Contact
-                    </a>
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="text-sm font-semibold text-slate-900">Legal</h4>
-                <ul className="mt-3 space-y-2.5 text-sm text-slate-500">
-                  <li>
-                    <a href="#" className="hover:text-slate-900">
-                      Privacy
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-slate-900">
-                      Terms
-                    </a>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-12 flex flex-col gap-4 border-t border-slate-100 pt-6 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-            <span>
-              © {new Date().getFullYear()} Customer Registry. All rights
-              reserved.
-            </span>
-            <span className="font-mono">Status: all systems operational</span>
-          </div>
+        
+        <div className="flex flex-col">
+          <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-widest mb-5">Navigation</h4>
+          <ul className="flex flex-col gap-3 font-semibold text-sm text-slate-600">
+            <li><a href="#features" onClick={(e) => handleScroll(e, '#features')} className="hover:text-indigo-600 transition-colors">Features</a></li>
+            <li><a href="#how-it-works" onClick={(e) => handleScroll(e, '#how-it-works')} className="hover:text-indigo-600 transition-colors">How it works</a></li>
+            <li><a href="#roles" onClick={(e) => handleScroll(e, '#roles')} className="hover:text-indigo-600 transition-colors">About / Roles</a></li>
+          </ul>
         </div>
-      </footer>
+
+        <div className="flex flex-col">
+          <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-widest mb-5">Authentication</h4>
+          <ul className="flex flex-col gap-3 font-semibold text-sm text-slate-600">
+            <li><a href="login.html" className="hover:text-indigo-600 transition-colors">Login Portal</a></li>
+            <li><a href="register.html" className="hover:text-indigo-600 transition-colors">Create Account</a></li>
+          </ul>
+        </div>
+      </div>
+      
+      <div className="max-w-7xl mx-auto px-6 pt-8 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center text-xs font-medium text-slate-400 gap-4 text-center">
+        <p>&copy; 2026 Customer Registry Inc. All rights reserved.</p>
+      </div>
+    </footer>
+  );
+}
+
+// ==========================================
+// 10. Main Home Component (Consolidated)
+// ==========================================
+export default function Home() {
+  const [cases, setCases] = useState([
+    { id: 'CR-2381', desc: 'Delayed refund on order', status: 'Open', details: 'Customer has not received their refund after 5 business days. Order ID: #10827, Refund amount: $129.99.', priority: 'High', category: 'Refunds' },
+    { id: 'CR-2380', desc: 'Login access issue', status: 'In progress', details: 'User gets 500 error when clicking password reset link. Browser: Chrome, OS: macOS.', priority: 'Medium', category: 'Account Access' },
+    { id: 'CR-2376', desc: 'Damaged item received', status: 'In progress', details: 'Parcel arrived with crushed corners. Customer uploaded photos of damaged keyboard chassis.', priority: 'High', category: 'Delivery Issues' },
+    { id: 'CR-2371', desc: 'Billing discrepancy', status: 'Resolved', details: 'Double charge on subscription fee. Refunded the duplicate transaction via Stripe portal.', priority: 'Low', category: 'Billing' }
+  ]);
+
+  const [toasts, setToasts] = useState([]);
+  const [modalState, setModalState] = useState({
+    isOpen: false,
+    role: 'admin',
+    caseId: null
+  });
+
+  const addToast = (message, type = 'success') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id, message, type }]);
+    
+    // Auto-remove toast after 4 seconds
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  };
+
+  const updateCaseStatus = (id, status) => {
+    setCases((prevCases) =>
+      prevCases.map((c) => (c.id === id ? { ...c, status } : c))
+    );
+  };
+
+  const addCase = (newCaseData) => {
+    const newId = `CR-${caseCounter++}`;
+    const newCase = {
+      id: newId,
+      ...newCaseData
+    };
+    setCases((prevCases) => [newCase, ...prevCases]);
+    addToast(`Success! Created Case ${newId}. It is now in the active queue.`, 'success');
+  };
+
+  const handleInspectCase = (caseId) => {
+    setModalState({
+      isOpen: true,
+      role: 'agent',
+      caseId
+    });
+  };
+
+  const handlePreviewRole = (role) => {
+    setModalState({
+      isOpen: true,
+      role,
+      caseId: null
+    });
+  };
+
+  const handleCloseModal = () => {
+    setModalState((prev) => ({ ...prev, isOpen: false }));
+  };
+
+  // Welcome Toast on Mount
+  useEffect(() => {
+    addToast("Welcome to Customer Registry Demo! Try clicking on cases in the queue or the preview buttons below.");
+  }, []);
+
+  return (
+    <div className="bg-slate-50 text-slate-900 min-h-screen font-sans antialiased selection:bg-indigo-500 selection:text-white">
+      {/* Header / Navbar */}
+      <Navbar />
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-6 pb-16">
+        {/* Hero Section */}
+        <Hero cases={cases} onInspect={handleInspectCase} />
+
+        {/* How It Works Section */}
+        <HowItWorks />
+
+        {/* Features Section */}
+        <Features />
+
+        {/* Roles / Portals Section */}
+        <Roles onPreview={handlePreviewRole} />
+      </main>
+
+      {/* Footer */}
+      <Footer />
+
+      {/* Interactive Preview Modals */}
+      <PreviewModal
+        isOpen={modalState.isOpen}
+        role={modalState.role}
+        caseId={modalState.caseId}
+        cases={cases}
+        onClose={handleCloseModal}
+        onUpdateCaseStatus={updateCaseStatus}
+        onAddCase={addCase}
+        onAddToast={addToast}
+      />
+
+      {/* Toast Alert System */}
+      <Toast toasts={toasts} />
     </div>
   );
 }
