@@ -45,7 +45,7 @@ const FEATURES = [
   {
     icon: KeyRound,
     title: "Secure authentication",
-    desc: "JWT-based sessions keep every account and case record protected by default.",
+    desc: "JWT-based sessions keep every account and customer record protected by default.",
   },
   {
     icon: LayoutDashboard,
@@ -181,7 +181,7 @@ export default function HomePage() {
               <ShieldCheck className="h-4.5 w-4.5" strokeWidth={2.25} />
             </span>
             <span className="text-[15px] font-semibold tracking-tight text-slate-900">
-              Case Registry
+              Customer Registry
             </span>
           </Link>
 
@@ -520,7 +520,7 @@ export default function HomePage() {
                   <ShieldCheck className="h-4 w-4" strokeWidth={2.25} />
                 </span>
                 <span className="text-[15px] font-semibold tracking-tight text-slate-900">
-                  Case Registry
+                  Customer Registry
                 </span>
               </div>
               <p className="mt-3 text-sm leading-relaxed text-slate-500">
@@ -589,7 +589,8 @@ export default function HomePage() {
 
           <div className="mt-12 flex flex-col gap-4 border-t border-slate-100 pt-6 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
             <span>
-              © {new Date().getFullYear()} Case Registry. All rights reserved.
+              © {new Date().getFullYear()} Customer Registry. All rights
+              reserved.
             </span>
             <span className="font-mono">Status: all systems operational</span>
           </div>
