@@ -4,8 +4,6 @@ const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
 const { restrictTo } = require("../middleware/roleMiddleware");
 
-const Complaint = require("../models/Complaint");
-
 const {
   createComplaint,
   getComplaints,
@@ -18,13 +16,23 @@ const {
 } = require("../controllers/complaintController");
 
 /* =========================
+   STATIC ROUTES FIRST
+   Must come before /:id so Express doesn't treat
+   "assigned" as an id param and call getComplaintById
+========================= */
+
+// GET /complaints        — customers see their own, agents see assigned, admins see all
+router.get("/", protect, getComplaints);
+
+// GET /complaints/assigned — kept for explicit agent use; same filter as getComplaints
+// but returning this dedicated route makes the intent clear on the frontend.
+// MUST be above /:id or it is shadowed and never reached.
+router.get("/assigned", protect, restrictTo("agent"), getComplaints);
+
+/* =========================
    CUSTOMER ROUTES
 ========================= */
 router.post("/", protect, restrictTo("customer"), createComplaint);
-
-router.get("/", protect, getComplaints);
-
-router.get("/:id", protect, getComplaintById);
 
 router.put("/:id", protect, restrictTo("customer"), updateComplaint);
 
@@ -48,34 +56,8 @@ router.put(
 );
 
 /* =========================
-   GET ASSIGNED COMPLAINTS (AGENT)
+   DYNAMIC PARAM ROUTES LAST
 ========================= */
-router.get("/assigned", protect, restrictTo("agent"), async (req, res) => {
-  try {
-    const userId = req.user._id || req.user.id;
-
-    console.log("Agent ID:", userId);
-
-    const complaints = await Complaint.find({
-      assignedAgent: userId,
-    })
-      .populate("customer", "name email")
-      .populate("assignedAgent", "name email")
-      .sort({ createdAt: -1 });
-
-    return res.status(200).json({
-      success: true,
-      complaints,
-    });
-
-  } catch (err) {
-    console.log("ASSIGNED ROUTE ERROR:", err);
-
-    return res.status(500).json({
-      success: false,
-      message: err.message,
-    });
-  }
-});
+router.get("/:id", protect, getComplaintById);
 
 module.exports = router;

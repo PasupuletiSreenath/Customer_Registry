@@ -1,27 +1,31 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Customer from "./pages/Customer";
 import Agent from "./pages/Agent";
 import Admin from "./pages/Admin";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AppLayout from "./components/AppLayout";
 
 function App() {
   return (
     <Routes>
-      {/* ✅ Default route */}
-      <Route path="/" element={<Navigate to="/login" />} />
+      {/* Public landing page */}
+      <Route path="/" element={<Home />} />
 
-      {/* ✅ Public routes */}
+      {/* Public */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      {/* ✅ Protected routes */}
+      {/* Protected — each page wrapped in AppLayout */}
       <Route
         path="/customer"
         element={
           <ProtectedRoute allowedRoles={["customer"]}>
-            <Customer />
+            <AppLayout>
+              <Customer />
+            </AppLayout>
           </ProtectedRoute>
         }
       />
@@ -30,7 +34,9 @@ function App() {
         path="/agent"
         element={
           <ProtectedRoute allowedRoles={["agent"]}>
-            <Agent />
+            <AppLayout>
+              <Agent />
+            </AppLayout>
           </ProtectedRoute>
         }
       />
@@ -39,12 +45,14 @@ function App() {
         path="/admin"
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
-            <Admin />
+            <AppLayout>
+              <Admin />
+            </AppLayout>
           </ProtectedRoute>
         }
       />
 
-      {/* 404 fallback */}
+      {/* 404 */}
       <Route path="*" element={<Navigate to="/login" />} />
     </Routes>
   );
