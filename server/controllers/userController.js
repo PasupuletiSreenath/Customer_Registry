@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const bcrypt = require("bcryptjs");
 
 // @route GET /api/users/me
 // @desc  Get logged-in user's own profile
@@ -73,4 +74,50 @@ const updateUserStatus = async (req, res, next) => {
   }
 };
 
-module.exports = { getMyProfile, updateMyProfile, getAllUsers, getUserById, updateUserStatus };
+// @route POST /api/users/agent
+// @desc  Admin only -- create a new agent account (sets login credentials)
+const createAgent = async (req, res, next) => {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+
+    const existing = await User.findOne({ email });
+    if (existing) {
+      return res.status(400).json({ success: false, message: "Email already in use" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const agent = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      role: "agent",
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Agent created",
+      user: {
+        id: agent._id,
+        name: agent.name,
+        email: agent.email,
+        role: agent.role,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = {
+  getMyProfile,
+  updateMyProfile,
+  getAllUsers,
+  getUserById,
+  updateUserStatus,
+  createAgent,
+};
