@@ -1,4 +1,5 @@
 const Complaint = require("../models/Complaint");
+const User = require("../models/User");
 
 // ================= CREATE =================
 const createComplaint = async (req, res, next) => {
@@ -96,7 +97,7 @@ const getComplaintById = async (req, res, next) => {
   }
 };
 
-// ================= UPDATE (NEW) =================
+// ================= UPDATE =================
 const updateComplaint = async (req, res, next) => {
   try {
     const { title, description } = req.body;
@@ -110,7 +111,6 @@ const updateComplaint = async (req, res, next) => {
       });
     }
 
-    // only owner
     if (complaint.customer.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
@@ -118,7 +118,6 @@ const updateComplaint = async (req, res, next) => {
       });
     }
 
-    // optional restriction
     if (complaint.status !== "open") {
       return res.status(400).json({
         success: false,
@@ -142,7 +141,7 @@ const updateComplaint = async (req, res, next) => {
 };
 
 // ================= ASSIGN =================
-const assignComplaint = async (req, res) => {
+const assignComplaint = async (req, res, next) => {
   try {
     const { agentId } = req.body;
 
@@ -150,6 +149,26 @@ const assignComplaint = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "agentId is required",
+      });
+    }
+
+    // Validate that the target user exists and is actually an agent.
+    // Without this check, a bad/mistyped ID saves silently and the
+    // agent's getComplaints filter returns nothing — the complaint
+    // disappears from all views.
+    const agent = await User.findById(agentId);
+
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (agent.role !== "agent") {
+      return res.status(400).json({
+        success: false,
+        message: "Target user is not an agent",
       });
     }
 
@@ -162,19 +181,20 @@ const assignComplaint = async (req, res) => {
       });
     }
 
-    complaint.assignedAgent = agentId;   // ⚠️ MUST MATCH YOUR MODEL FIELD
+    complaint.assignedAgent = agent._id;
     complaint.status = "in-progress";
 
     await complaint.save();
 
-    res.json({
+    const populated = await complaint.populate("assignedAgent", "name email");
+
+    res.status(200).json({
       success: true,
       message: "Assigned successfully",
-      complaint,
+      complaint: populated,
     });
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Server error" });
+    next(err);
   }
 };
 
@@ -183,13 +203,7 @@ const updateComplaintStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
 
-    const allowed = [
-      "open",
-      "in-progress",
-      "escalated",
-      "resolved",
-      "closed",
-    ];
+    const allowed = ["open", "in-progress", "escalated", "resolved", "closed"];
 
     if (!allowed.includes(status)) {
       return res.status(400).json({
@@ -260,7 +274,7 @@ const submitFeedback = async (req, res, next) => {
   }
 };
 
-// ================= DELETE (FIXED) =================
+// ================= DELETE =================
 const deleteComplaint = async (req, res, next) => {
   try {
     const complaint = await Complaint.findById(req.params.id);

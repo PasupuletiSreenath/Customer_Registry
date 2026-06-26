@@ -1,12 +1,20 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import API from "../api/axios";
-import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useToast } from "../context/ToastContext";
+import { Inbox } from "lucide-react";
+
+const STATUS_STYLES = {
+  open: "text-rose-600 bg-rose-50 ring-rose-200",
+  "in-progress": "text-amber-600 bg-amber-50 ring-amber-200",
+  escalated: "text-red-600 bg-red-50 ring-red-200",
+  resolved: "text-emerald-600 bg-emerald-50 ring-emerald-200",
+  closed: "text-slate-600 bg-slate-100 ring-slate-200",
+};
+
 const Agent = () => {
   const [complaints, setComplaints] = useState([]);
 
-  const { logout } = useAuth();
-  const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const fetchComplaints = async () => {
     try {
@@ -14,6 +22,7 @@ const Agent = () => {
       setComplaints(data.complaints || []);
     } catch (err) {
       console.log(err.response?.data || err.message);
+      showToast("Failed to load complaints", "error");
       setComplaints([]);
     }
   };
@@ -25,38 +34,29 @@ const Agent = () => {
   const updateStatus = async (id, status) => {
     try {
       await API.put(`/complaints/${id}/status`, { status });
+      showToast("Status updated", "success");
       fetchComplaints();
     } catch (err) {
       console.log(err);
+      showToast(
+        err.response?.data?.message || "Failed to update status",
+        "error",
+      );
     }
   };
 
-  const handleLogout = () => {
-    if (window.confirm("Logout?")) {
-      logout();
-      navigate("/login");
-    }
-  };
-
-  const getStatusColor = (status) => {
-    if (status === "pending") return "bg-yellow-100 text-yellow-700";
-    if (status === "in-progress") return "bg-blue-100 text-blue-700";
-    if (status === "resolved") return "bg-green-100 text-green-700";
-    return "bg-gray-100 text-gray-700";
-  };
+  const getStatusColor = (status) =>
+    STATUS_STYLES[status] || "text-slate-600 bg-slate-100 ring-slate-200";
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Agent Dashboard</h1>
-
-        <button
-          onClick={handleLogout}
-          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow"
-        >
-          Logout
-        </button>
+    <div>
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+          Agent Dashboard
+        </h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Cases assigned to you, ready to work.
+        </p>
       </div>
 
       {/* Grid */}
@@ -64,45 +64,46 @@ const Agent = () => {
         {complaints.map((c) => (
           <div
             key={c._id}
-            className="bg-white p-5 rounded-xl shadow hover:shadow-lg transition"
+            className="bg-white p-5 rounded-2xl border border-slate-200 transition-shadow hover:shadow-md"
           >
             {/* Title + Status */}
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-gray-800">{c.title}</h3>
-
+            <div className="flex justify-between items-start gap-3">
+              <h3 className="font-semibold text-slate-900">{c.title}</h3>
               <span
-                className={`px-3 py-1 text-xs rounded-full ${getStatusColor(
-                  c.status,
-                )}`}
+                className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${getStatusColor(c.status)}`}
               >
                 {c.status}
               </span>
             </div>
 
             {/* Description */}
-            <p className="text-gray-600 mt-2 text-sm">{c.description}</p>
-
-            {/* Customer Info */}
-            <p className="text-sm mt-3">
-              <span className="font-medium text-gray-700">Customer:</span>{" "}
-              {c.user?.name || "Unknown"}
+            <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+              {c.description}
             </p>
 
-            {/* Status Dropdown */}
+            {/* Customer info */}
+            <p className="text-sm text-slate-600 mt-3">
+              <span className="font-medium text-slate-700">Customer:</span>{" "}
+              {c.customer?.name || "Unknown"}
+            </p>
+
+            {/* Status dropdown */}
             <div className="mt-4">
               <select
                 value={c.status}
                 onChange={(e) => updateStatus(c._id, e.target.value)}
-                className="w-full border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none"
+                className="w-full border border-slate-200 p-2.5 rounded-lg text-sm text-slate-700 outline-none transition-colors focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
               >
-                <option value="pending">Pending</option>
+                <option value="open">Open</option>
                 <option value="in-progress">In Progress</option>
+                <option value="escalated">Escalated</option>
                 <option value="resolved">Resolved</option>
+                <option value="closed">Closed</option>
               </select>
             </div>
 
-            {/* Footer */}
-            <p className="text-xs text-gray-400 mt-3">
+            {/* Date */}
+            <p className="text-xs text-slate-400 font-mono mt-3">
               {c.createdAt ? new Date(c.createdAt).toLocaleString() : ""}
             </p>
           </div>
@@ -111,9 +112,10 @@ const Agent = () => {
 
       {/* Empty state */}
       {complaints.length === 0 && (
-        <p className="text-center text-gray-500 mt-10">
-          No assigned complaints
-        </p>
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 py-16 text-center">
+          <Inbox className="h-8 w-8 text-slate-300" strokeWidth={1.5} />
+          <p className="text-sm text-slate-500">No assigned complaints</p>
+        </div>
       )}
     </div>
   );
