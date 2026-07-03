@@ -13,9 +13,6 @@ function Login() {
     try {
       const { data } = await API.post("/auth/login", form);
 
-      // ✅ SAVE HERE
-      localStorage.setItem("user", JSON.stringify(data));
-
       login(data);
 
       const role = data.user.role;

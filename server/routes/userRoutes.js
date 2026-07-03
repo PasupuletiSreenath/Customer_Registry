@@ -9,6 +9,7 @@ const {
   getUserById,
   updateUserStatus,
   createAgent,
+  deleteUser,
 } = require("../controllers/userController");
 
 // Logged-in user's own profile
@@ -20,5 +21,6 @@ router.get("/", protect, restrictTo("admin"), getAllUsers);
 router.post("/agent", protect, restrictTo("admin"), createAgent);
 router.get("/:id", protect, restrictTo("admin"), getUserById);
 router.put("/:id/status", protect, restrictTo("admin"), updateUserStatus);
+router.delete("/:id", protect, restrictTo("admin"), deleteUser);
 
 module.exports = router;

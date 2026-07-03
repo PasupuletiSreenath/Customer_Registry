@@ -113,6 +113,30 @@ const createAgent = async (req, res, next) => {
   }
 };
 
+// @route DELETE /api/users/:id
+// @desc  Admin only -- delete a user account (e.g. an agent)
+const deleteUser = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Set assignedAgent to null for all complaints assigned to this user
+    const Complaint = require("../models/Complaint");
+    await Complaint.updateMany(
+      { assignedAgent: user._id },
+      { $set: { assignedAgent: null, status: "open" } }
+    );
+
+    await user.deleteOne();
+
+    res.status(200).json({ success: true, message: "User deleted successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getMyProfile,
   updateMyProfile,
@@ -120,4 +144,5 @@ module.exports = {
   getUserById,
   updateUserStatus,
   createAgent,
+  deleteUser,
 };
