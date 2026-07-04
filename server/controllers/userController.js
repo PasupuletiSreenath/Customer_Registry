@@ -29,6 +29,35 @@ const updateMyProfile = async (req, res, next) => {
   }
 };
 
+// @route PUT /api/users/me/password
+// @desc  Update logged-in user's password
+const updateMyPassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    // Find user and explicitly select password (since it's select: false in schema)
+    const user = await User.findById(req.user._id).select("+password");
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Verify current password
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: "Incorrect current password" });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    res.status(200).json({ success: true, message: "Password updated successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @route GET /api/users
 // @desc  Admin only -- list all users, optionally filtered by role
 const getAllUsers = async (req, res, next) => {
@@ -140,6 +169,7 @@ const deleteUser = async (req, res, next) => {
 module.exports = {
   getMyProfile,
   updateMyProfile,
+  updateMyPassword,
   getAllUsers,
   getUserById,
   updateUserStatus,

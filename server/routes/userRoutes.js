@@ -5,6 +5,7 @@ const { restrictTo } = require("../middleware/roleMiddleware");
 const {
   getMyProfile,
   updateMyProfile,
+  updateMyPassword,
   getAllUsers,
   getUserById,
   updateUserStatus,
@@ -15,6 +16,7 @@ const {
 // Logged-in user's own profile
 router.get("/me", protect, getMyProfile);
 router.put("/me", protect, updateMyProfile);
+router.put("/me/password", protect, updateMyPassword);
 
 // Admin-only user management
 router.get("/", protect, restrictTo("admin"), getAllUsers);

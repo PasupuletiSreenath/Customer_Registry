@@ -9,6 +9,8 @@ import {
   History,
   LogOut,
   Menu,
+  ChevronDown,
+  User,
 } from "lucide-react";
 
 // NAV structure using query parameters to showcase different methods/tabs
@@ -41,6 +43,7 @@ const AppLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
 
   const handleLogout = () => {
     if (window.confirm("Are you sure you want to logout?")) {
@@ -72,7 +75,7 @@ const AppLayout = ({ children }) => {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50/50">
+    <div className="flex h-screen bg-slate-50/50 overflow-hidden">
       {/* ── Sidebar ── */}
       <aside
         className={`
@@ -84,7 +87,10 @@ const AppLayout = ({ children }) => {
       >
         {/* Panel title & Logo */}
         <div className="p-6 border-b border-slate-800 bg-slate-950/45">
-          <div className="flex items-center gap-3">
+          <button 
+            onClick={() => navigate(`/${user?.role || ''}`)}
+            className="flex items-center gap-3 w-full text-left hover:opacity-80 transition-opacity focus:outline-none"
+          >
             <div className="h-9 w-9 rounded-xl bg-indigo-600/15 border border-indigo-500/25 flex items-center justify-center text-indigo-400 shadow-inner shrink-0">
               <svg
                 className="h-5 w-5 text-indigo-500"
@@ -121,7 +127,7 @@ const AppLayout = ({ children }) => {
                 </p>
               )}
             </div>
-          </div>
+          </button>
         </div>
 
         {/* Nav links */}
@@ -177,21 +183,72 @@ const AppLayout = ({ children }) => {
       )}
 
       {/* ── Main area ── */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile top bar */}
-        <header className="md:hidden flex items-center gap-3 bg-white shadow px-4 py-3">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="text-gray-600 text-2xl leading-none"
-            aria-label="Open menu"
-          >
-            ☰
-          </button>
-          <span className="font-bold text-gray-800">{panelTitle}</span>
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        {/* Top header (Desktop & Mobile) */}
+        <header className="flex-shrink-0 flex items-center justify-between bg-white/95 backdrop-blur-sm shadow-sm border-b border-slate-100 px-4 py-3 z-20">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="text-gray-600 text-2xl leading-none md:hidden"
+              aria-label="Open menu"
+            >
+              ☰
+            </button>
+            <span className="font-bold text-gray-800 md:hidden">{panelTitle}</span>
+          </div>
+
+          <div className="relative ml-auto">
+            <button
+              onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+              className="flex items-center gap-2 hover:bg-slate-100 p-2 rounded-xl transition-colors focus:outline-none"
+            >
+              <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
+                {user?.name?.charAt(0).toUpperCase() || "?"}
+              </div>
+              <ChevronDown className="h-4 w-4 text-slate-500" />
+            </button>
+
+            {profileDropdownOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setProfileDropdownOpen(false)}
+                ></div>
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-50 overflow-hidden">
+                  <div className="px-4 py-2 border-b border-slate-100">
+                    <p className="text-sm font-semibold text-slate-800 truncate">{user?.name}</p>
+                    <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                  </div>
+                  
+                  <button
+                    onClick={() => {
+                      setProfileDropdownOpen(false);
+                      navigate("/profile");
+                    }}
+                    className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    <User className="h-4 w-4 text-slate-400" />
+                    <span>Profile</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      setProfileDropdownOpen(false);
+                      handleLogout();
+                    }}
+                    className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors"
+                  >
+                    <LogOut className="h-4 w-4 text-rose-500" />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50/50">{children}</main>
       </div>
     </div>
   );

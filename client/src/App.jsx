@@ -5,6 +5,7 @@ import Register from "./pages/Register";
 import Customer from "./pages/Customer";
 import Agent from "./pages/Agent";
 import Admin from "./pages/Admin";
+import Profile from "./pages/Profile";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./components/AppLayout";
 
@@ -47,6 +48,18 @@ function App() {
           <ProtectedRoute allowedRoles={["admin"]}>
             <AppLayout>
               <Admin />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Shared Profile Route */}
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute allowedRoles={["customer", "agent", "admin"]}>
+            <AppLayout>
+              <Profile />
             </AppLayout>
           </ProtectedRoute>
         }
