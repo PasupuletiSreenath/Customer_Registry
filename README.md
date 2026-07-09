@@ -27,7 +27,7 @@ Runs at `http://localhost:5000`. Requires MongoDB running locally (or an Atlas U
 cd client
 npm run dev
 ```
-Opens at a local URL (e.g. `http://localhost:3000`) — open that in your browser.
+Opens at a local URL (e.g. `http://localhost:5173`) — open that in your browser.
 
 ## Roles
 
